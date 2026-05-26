@@ -1,4 +1,3 @@
-# AI-Chatbot-Web-App
 # AI Chatbot Web Application
 
 ## Project Overview
