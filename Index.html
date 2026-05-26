@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropChat</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #fff;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h2 {
+            font-size: 1.2em;
+            color: #333;
+            margin-top: 0;
+        }
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        #history-list li {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        #history-list li:hover {
+            background-color: #f0f0f0;
+        }
+        #clear-history {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .chat-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+        .message {
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+        .user-message {
+            text-align: right;
+        }
+        .user-message .message-content {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 15px 15px 0 15px;
+            display: inline-block;
+            max-width: 70%;
+        }
+        .bot-message .message-content {
+            background-color: #e9e9eb;
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 15px 15px 15px 0;
+            display: inline-block;
+            max-width: 70%;
+        }
+        .chat-input {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #f4f6f8;
+        }
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            padding: 10px 15px;
+            font-size: 1em;
+        }
+        #send-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Recent Searches</h2>
+        <ul id="history-list"></ul>
+        <button id="clear-history">Clear History</button>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-box" id="chat-box">
+            <div class="message bot-message">
+                <div class="message-content">Hi! How can I help you today?</div>
+            </div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Type a message...">
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const historyList = document.getElementById('history-list');
+        const clearHistoryBtn = document.getElementById('clear-history');
+
+        let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+
+        const updateHistory = () => {
+            historyList.innerHTML = '';
+            chatHistory.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                li.addEventListener('click', () => {
+                    userInput.value = item;
+                    userInput.focus();
+                });
+                historyList.appendChild(li);
+            });
+        };
+
+        const addMessage = (message, sender) => {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', `${sender}-message`);
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            messageContent.textContent = message;
+            messageElement.appendChild(messageContent);
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            if (sender === 'user') {
+                if (!chatHistory.includes(message)) {
+                    chatHistory.push(message);
+                    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                    updateHistory();
+                }
+            }
+        };
+
+        const sendMessage = async () => {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            addMessage(message, 'user');
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addMessage(data.response, 'bot');
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessage('Sorry, something went wrong. Please try again.', 'bot');
+            }
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        clearHistoryBtn.addEventListener('click', () => {
+            chatHistory = [];
+            localStorage.removeItem('chatHistory');
+            updateHistory();
+        });
+
+        updateHistory();
+    </script>
+
+</body>
+</html>
