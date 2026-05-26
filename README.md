@@ -1,4 +1,4 @@
-# AI Chatbot Web Application
+# AI-Assistant-Chatbot
 
 ## Project Overview
 
